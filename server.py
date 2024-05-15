@@ -7,6 +7,7 @@ N = 5
 p = 3
 q = 2051
 
+
 class server:
 
     def __init__(self, km):
@@ -18,8 +19,15 @@ class server:
     def add_client(self, id, K, n):
         self.registered_clients[id] = [K, n]
 
+
 def main():
 
+    HN = server(567890)
+
+    #  add random clients
+
+    HN.add_client(234562345, 3452345, 1005)
+    
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     server_socket.bind((host, port))
@@ -30,37 +38,30 @@ def main():
     client_socket, addr = server_socket.accept()
     print("Connection from {}".format(addr))
 
-
     # send_list(client_socket, [N,p,q,[2,3]])
     keys = generate_key()
     server_h = keys._h
-    
+
     client_socket.sendall(pickle.dumps(server_h))
     client_pk = pickle.loads(client_socket.recv(8192))
     # client_pk = receive_list(client_socket)
     # print("Client Public Key", client_pk)
     # print(keys.get_h)
-    
-    print(client_pk)
-    print(type(client_pk))
 
-    HN = server(567890)
+    # print(client_pk)
+    # print(type(client_pk))
 
-
-    #  add random clients
-
-    HN.add_client(234562345,3452345,1005)
 
     # response = receive_list(client_socket)
     response = pickle.loads(client_socket.recv(5120000))
     response = keys.decrypt(response)
     response = deserialize(response)
-    print(type(response),"hii")
-    print(response)
+    # print(type(response),"hii")
+    # print(response)
 
     kn = response[1] ^ response[2] ^ HN.km
-    id = response[1] ^ hash_function([HN.km,kn])
-    c = hash_function([HN.km,id])
+    id = response[1] ^ hash_function([HN.km, kn])
+    c = hash_function([HN.km, id])
 
     if id not in HN.registered_clients.keys():
         abort()
@@ -71,15 +72,18 @@ def main():
     if response[0] == 1:
 
         rn = response[3] ^ response[1] ^ id
-        n = response[4] ^ hash_function([K, rn ,response[3]])
+        n = response[4] ^ hash_function([K, rn, response[3]])
         flag = False
 
         while n:
-            if hash_function([K, id, c , response[1], response[2], n, response[4]]) == response[5]:
+            if (
+                hash_function([K, id, c, response[1], response[2], n, response[4]])
+                == response[5]
+            ):
                 n_ = n
                 flag = True
                 break
-            n-=1
+            n -= 1
         if not flag:
             abort()
     elif response[0] == 0:
@@ -90,7 +94,7 @@ def main():
                 n_ = N
                 flag = True
                 break
-            n-=1
+            n -= 1
         if not flag:
             abort()
     else:
@@ -99,29 +103,23 @@ def main():
     n_ = n_ + 1
     kn_ = get_random()
     fn_ = get_random()
-    an_ = id ^ hash_function([HN.km,kn_])
+    an_ = id ^ hash_function([HN.km, kn_])
     bn_ = an_ ^ HN.km ^ kn_
-    eeta = hash_function([fn_,c]) ^ an_
-    muu = hash_function([c,fn_]) ^ bn_
+    eeta = hash_function([fn_, c]) ^ an_
+    muu = hash_function([c, fn_]) ^ bn_
     alpha = c ^ fn_
-    seskey = hash_function([K, fn_, eeta, muu, n_+1])
+    seskey = hash_function([K, fn_, eeta, muu, n_ + 1])
     beta = hash_function([seskey, an_, bn_, id, c])
 
     # send_list(client_socket, [alpha, beta, eeta, muu])
-    print(alpha, beta ,eeta ,muu)
+    # print(alpha, beta ,eeta ,muu)
     reply = serialize([alpha, beta, eeta, muu])
-    print(reply)
-    print(type(reply ))
+    # print(reply)
+    # print(type(reply ))
     reply = keys.encrypt(reply, client_pk)
     client_socket.sendall(pickle.dumps(reply))
 
     print("Authentication Succesful")
-
-
-    
-
-
-
 
     while True:
 
