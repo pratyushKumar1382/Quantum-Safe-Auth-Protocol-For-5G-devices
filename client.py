@@ -9,18 +9,17 @@ import time
 
 class client:
 
-    def __init__(self, K_, id_, n_, kn_, km_):
+    def __init__(self, K_, id_, n_, an_, bn_, c_):
         self.K = K_
         self.id = id_
         self.n = n_
-        self.kn = kn_
-        self.km = km_
-        self.an = id_ ^ hash_function([km_, kn_])
+        self.an = an_
         # print(self.an ^ hash_function([km_, kn_]),"\n\n\n", km_, kn_)
-        self.bn = self.an ^ km_ ^ kn_
-        self.c = hash_function([km_, id_])
+        self.bn = bn_
+        self.c = c_
 
     def sync_message(self, str):
+        # print("hash: ", [self.K, self.id, self.c, self.an, self.bn, self.n])
         # print([0, self.an, self.bn, hash_function([self.K, self.id, self.c, self.an, self.bn, self.n])],"\n\n\n\n")
         return [
             0,
@@ -45,24 +44,48 @@ class client:
 
 def main():
 
-    mobile = client(3452345, 234562345, 1010, 23456, 567890)
+    # mobile = client(3452345, 234562345, 1010, 23456, 567890)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     client_socket.connect((host, port))
     print("Connected to server on {}:{}".format(host, port))
-    server_pk = pickle.loads(client_socket.recv(8192))
+    # server_pk = pickle.loads(client_socket.recv(8192))
     # print(server_pk)
     # print(type(server_pk))
 
     # print("Server Public Key", server_pk)
     
+
+# **************** Registration Phase ****************
     start_time = time.perf_counter()
 
-    keys = generate_key()
-    client_h = keys._h
-    client_socket.sendall(pickle.dumps(client_h))
+    # response[0] -> K
+    # response[1] -> id
+    # response[2] -> an
+    # response[3] -> bn
+    # response[4] -> c
+
+
+    response = pickle.loads(client_socket.recv(5120000))
+    mobile = client(response[0], response[1], 0, response[2], response[3], response[4])
+
+
+
+
+    # keys = generate_key()
+    # client_h = keys._h
+    # client_socket.sendall(pickle.dumps(client_h))
     # # print(keys.get_h)
     # send(client_socket, client_h.coefficients())
+
+    end_time = time.perf_counter()
+
+    print("Time taken in Registration Phase: ",end_time - start_time, " s")
+
+
+# **************** Phase 1 ****************
+    start_time = time.perf_counter()
+
 
 
     mode = "Sync"
@@ -78,18 +101,26 @@ def main():
         abort()
 
     # reply = send_message(reply, server_pk, keys)
-    reply = serialize(reply)
-    reply = keys.encrypt(reply, server_pk)
-    sys.getsizeof(pickle.dumps(reply))
+    # reply = serialize(reply)
+    # reply = keys.encrypt(reply, server_pk)
+    # sys.getsizeof(pickle.dumps(reply))
+    # print(reply)
     client_socket.sendall(pickle.dumps(reply))
+
+
+# **************** Phase 3 ****************
+
 
     mobile.n += 1
 
-    # tokens = receive_list(client_socket)
+    # tokens[0] -> alpha
+    # tokens[1] -> beta
+    # tokens[2] -> eeta
+    # tokens[3] -> muu
 
     tokens = pickle.loads(client_socket.recv(5120000))
-    tokens = keys.decrypt(tokens)
-    tokens = deserialize(tokens, 4)
+    # tokens = keys.decrypt(tokens)
+    # tokens = deserialize(tokens, 4)
     # print(tokens)
 
     fn_ = mobile.c ^ tokens[0]
@@ -97,11 +128,17 @@ def main():
     bn_ = tokens[3] ^ hash_function([mobile.c, fn_])
     seskey = hash_function([mobile.K, fn_, tokens[2], tokens[3], (mobile.n) + 1])
     beta_ = hash_function([seskey, an_, bn_, mobile.id, mobile.c])
+    # print(["hash", seskey, an_, bn_, mobile.id, mobile.c])
+    # print("hash", hash_function([ seskey, an_, bn_, mobile.id, mobile.c]))
 
-    if beta_ == tokens[1]:
+
+    if beta_ != tokens[1]:
         abort()
 
     end_time = time.perf_counter()
+
+    print("Time taken in Auth Phase: ",end_time - start_time, " s")
+
     
     
     print("Authentication Successful")
