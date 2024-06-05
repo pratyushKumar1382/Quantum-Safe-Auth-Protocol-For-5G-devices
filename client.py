@@ -1,9 +1,6 @@
 import socket
-from utils import *
-from ntru import NTRUKey, generate_key
-from poly import Polynomial as poly
+from utils_client import *
 import pickle
-import sys
 import time
 
 
